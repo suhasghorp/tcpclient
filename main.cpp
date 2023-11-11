@@ -1,4 +1,5 @@
 #include "challenge.h"
+#include "structs.h"
 
 using namespace std;
 #define BILLION  1000000000L
@@ -30,24 +31,6 @@ uint16_t checksum16(const uint8_t* buf, uint32_t len) {
   return uint16_t(~sum);
 }
 struct timespec res;
-struct LoginRequest{
-  char msg_type;
-  uint16_t msg_len;
-  uint64_t time;
-  uint16_t check_sum;
-  char user[64];
-  char password[32];
-} __attribute__((packed)) login_request;
-
-
-struct LoginResponse{
-  char msg_type;
-  uint16_t msg_len;
-  uint64_t time;
-  uint16_t check_sum;
-  char code[1];
-  char reason[32];
-} __attribute__((packed)) login_response;
 
 
 /* paddr: print the IP address in a standard decimal dotted format */
@@ -61,24 +44,6 @@ void die_with_user_message(const char *msg, const char *detail) {
   fputs(detail, stderr);
   fputc('\n', stderr);
   exit(1);
-}
-
-uint64_t htonll(uint64_t value)
-{
-  // The answer is 42
-  static const int num = 42;
-
-  // Check the endianness
-  if (*reinterpret_cast<const char*>(&num) == num)
-  {
-    const uint32_t high_part = htonl(static_cast<uint32_t>(value >> 32));
-    const uint32_t low_part = htonl(static_cast<uint32_t>(value & 0xFFFFFFFFLL));
-
-    return (static_cast<uint64_t>(low_part) << 32) | high_part;
-  } else
-  {
-    return value;
-  }
 }
 
 void print_socket_address(const struct sockaddr *address, FILE *stream) {
@@ -140,7 +105,8 @@ int main(int argc, char *argv[]) {
     print_socket_address(addr->ai_addr, stdout);
     fputc('\n', stdout);
     //try to create a reliable stream socket
-    sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    //sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    sock = socket(addr->ai_family, addr->ai_socktype, 0);
     if (!ISVALIDSOCKET(sock)) {
       fprintf(stderr, "socket() failed. (%d)\n", GETSOCKETERRNO());
     } else {
@@ -156,11 +122,11 @@ int main(int argc, char *argv[]) {
   freeaddrinfo(addr_list);
 
   login_request.msg_type = 'L';
-  login_request.time = nanosecs();
+  login_request.timestamp = nanosecs();
   login_request.msg_len = 109;
   strcpy(login_request.user,"suhasghorp@gmail.com");
   strcpy(login_request.password,"pwd123");
-  unsigned char *ptr=(unsigned char *)&login_request;
+  auto *ptr=(unsigned char *)&login_request;
   int sz=sizeof(struct LoginRequest);
   login_request.check_sum = checksum16(ptr, sz);
 
@@ -179,9 +145,9 @@ int main(int argc, char *argv[]) {
     } else {
       if (*login_response.code == 'N') {
         if (login_response.check_sum == 0) {// the reason was empty, so compare checksum
-          unsigned char *ptr = (unsigned char *) &login_response;
+          auto *rptr = (unsigned char *) &login_response;
           int sz = sizeof(struct LoginResponse);
-          auto check_sum = checksum16(ptr, sz);
+          auto check_sum = checksum16(rptr, sz);
           printf("Login failed with reason: Checksum %d got %d\n", check_sum, login_response.check_sum);
         } else {
           printf("Login failed with reason: %s\n", login_response.reason);
@@ -193,16 +159,46 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /*if( send(sock, (void*)&login_request, sizeof(login_request),0) < 0 ) {
-    printf("send failed!\n");
+  //send submission request
+  submission_request.msg_type = 'S';
+  submission_request.timestamp = nanosecs();
+  submission_request.msg_len = 205;
+  strcpy(submission_request.name,"suhas ghorpadkar");
+  strcpy(submission_request.email,"suhasghorp@gmail.com");
+  strcpy(submission_request.repo,"https://github.com/suhasghorp/tcpclient");
+  auto sub_ptr=(unsigned char *)&submission_request;
+  sz=sizeof(struct SubmissionRequest);
+  submission_request.check_sum = checksum16(sub_ptr, sz);
 
-  if (recv (sock, &login_response, sizeof (struct LoginResponse), 0) == -1){
-    printf("receive failed!\n");
+  if (send(sock, (void *) &submission_request, sizeof(submission_request), 0) < 0) {
+    printf("SubmissionRequest send failed!\n");
   } else {
-    printf("Login success\n");
-  }*/
+    printf("SubmissionRequest request sent\n");
+  }
+  if (recv(sock, &submission_response, sizeof(struct SubmissionResponse), 0) == -1) {
+    printf("SubmissionResponse receive failed!\n");
+  } else {
+    printf("Token:%s\n", submission_response.token);
+  }
 
+  //send Logout request
+  logout_request.msg_type = 'O';
+  logout_request.timestamp = nanosecs();
+  logout_request.msg_len = 13;
+  auto logout_ptr=(unsigned char *)&logout_request;
+  sz=sizeof(struct LogoutRequest);
+  logout_request.check_sum = checksum16(logout_ptr, sz);
 
+  if (send(sock, (void *) &logout_request, sizeof(logout_request), 0) < 0) {
+    printf("LogoutRequest send failed!\n");
+  } else {
+    printf("Logout sent\n");
+  }
+  if (recv(sock, &logout_response, sizeof(struct LogoutResponse), 0) == -1) {
+    printf("LogoutResponse receive failed!\n");
+  } else {
+    printf("Logout received\n");
+  }
 
 
 
