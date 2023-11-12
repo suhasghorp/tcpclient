@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
 
   int sock = -1;
   //display returned addresses
-  for (struct addrinfo *addr = addr_list; addr != NULL; addr = addr->ai_next){
+  for (struct addrinfo *addr = addr_list; addr != nullptr; addr = addr->ai_next){
     print_socket_address(addr->ai_addr, stdout);
     fputc('\n', stdout);
     //try to create a reliable stream socket
@@ -128,8 +128,7 @@ int main(int argc, char *argv[]) {
   }
 
   while (!login_successful) {
-
-    int rec_len = 0;
+    long rec_len = 0;
     rec_len = recv(sock, &login_response, sizeof(struct LoginResponse), 0);
     if (rec_len < 0){
       printf("login receive failed!\n");
@@ -161,14 +160,14 @@ int main(int argc, char *argv[]) {
   sz=sizeof(struct SubmissionRequest);
   submission_request.check_sum = checksum16(sub_ptr, sz);
 
-  int send_len = 0;
+  long send_len = 0;
   send_len = send(sock, (void *) &submission_request, sizeof(submission_request), 0);
   if (send_len < 0){
     printf("Submission success.\n");
   } else {
     printf("SubmissionRequest request sent\n");
   }
-  int rec_len = 0;
+  long rec_len = 0;
   rec_len = recv(sock, &submission_response, sizeof(struct SubmissionResponse), 0);
   if (rec_len < sizeof(SubmissionResponse)){
     printf("SubmissionResponse receive failed!\n");
