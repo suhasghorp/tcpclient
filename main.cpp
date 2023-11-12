@@ -1,4 +1,3 @@
-#include "challenge.h"
 #include "structs.h"
 
 using namespace std;
@@ -33,34 +32,18 @@ uint16_t checksum16(const uint8_t* buf, uint32_t len) {
 struct timespec res;
 
 
-/* paddr: print the IP address in a standard decimal dotted format */
-void paddr(unsigned char *a) {
-  printf("%d.%d.%d.%d\n", a[0], a[1], a[2], a[3]);
-}
-
-void die_with_user_message(const char *msg, const char *detail) {
-  fputs(msg, stderr);
-  fputs(": ", stderr);
-  fputs(detail, stderr);
-  fputc('\n', stderr);
-  exit(1);
-}
-
 void print_socket_address(const struct sockaddr *address, FILE *stream) {
   if (address == nullptr || stream == nullptr)
     return;
   void *numericAddress; // Pointer to binary address
   char addrBuffer[INET6_ADDRSTRLEN];
-  in_port_t port; // Port to print
   // Set pointer to address based on address family
   switch (address->sa_family) {
     case AF_INET:
       numericAddress = &((struct sockaddr_in *) address)->sin_addr;
-      port = ntohs(((struct sockaddr_in *) address)->sin_port);
       break;
     case AF_INET6:
       numericAddress = &((struct sockaddr_in6 *) address)->sin6_addr;
-      port = ntohs(((struct sockaddr_in6 *) address)->sin6_port);
       break;
     default:
       fputs("[unknown type]", stream);
