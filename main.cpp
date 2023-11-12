@@ -47,12 +47,9 @@ void die_with_user_message(const char *msg, const char *detail) {
 }
 
 void print_socket_address(const struct sockaddr *address, FILE *stream) {
-  // Test for address and stream
-  if (address == NULL || stream == NULL)
+  if (address == nullptr || stream == nullptr)
     return;
-
   void *numericAddress; // Pointer to binary address
-  // Buffer to contain result (IPv6 sufficient to hold IPv4)
   char addrBuffer[INET6_ADDRSTRLEN];
   in_port_t port; // Port to print
   // Set pointer to address based on address family
@@ -66,18 +63,12 @@ void print_socket_address(const struct sockaddr *address, FILE *stream) {
       port = ntohs(((struct sockaddr_in6 *) address)->sin6_port);
       break;
     default:
-      fputs("[unknown type]", stream); // Unhandled type
+      fputs("[unknown type]", stream);
       return;
   }
   // Convert binary to printable address
-  if (inet_ntop(address->sa_family, numericAddress, addrBuffer,
-                sizeof(addrBuffer)) == NULL)
-    fputs("[invalid address]", stream); // Unable to convert
-  else {
-    fprintf(stream, "%s", addrBuffer);
-    if (port != 0) // Zero not valid in any socket addr
-      fprintf(stream, "-%u", port);
-  }
+  inet_ntop(address->sa_family, numericAddress, addrBuffer, sizeof(addrBuffer));
+  fprintf(stream, "%s", addrBuffer);
 }
 
 int main(int argc, char *argv[]) {
@@ -87,7 +78,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  printf("Configuring remote address...\n");
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
@@ -96,7 +86,7 @@ int main(int argc, char *argv[]) {
   struct addrinfo *addr_list;
   int ret = getaddrinfo(argv[1], argv[2], &hints, &addr_list);
   if (ret != 0){
-    die_with_user_message("getaddrinfo() failed", gai_strerror(ret));
+    printf("getaddrinfo() failed: %s", gai_strerror(ret));
   }
 
   int sock = -1;
@@ -105,26 +95,20 @@ int main(int argc, char *argv[]) {
     print_socket_address(addr->ai_addr, stdout);
     fputc('\n', stdout);
     //try to create a reliable stream socket
-    //sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     sock = socket(addr->ai_family, addr->ai_socktype, 0);
-    if (!ISVALIDSOCKET(sock)) {
-      fprintf(stderr, "socket() failed. (%d)\n", GETSOCKETERRNO());
+    if (sock < 0) {
+      fprintf(stderr, "Error: (%d) (%s)\n", errno, strerror(errno));
       close(sock);
     } else {
-      printf("socket successfully created\n");
+      printf("Socket successfully created...\n");
       //establish connection to server
       if (connect(sock, addr->ai_addr, addr->ai_addrlen)) {
-        fprintf(stderr, "connect() failed. (%d)\n", GETSOCKETERRNO());
+        fprintf(stderr, "Error: %d %s\n", errno, strerror(errno));
       }
     }
-
-
   }
-  // check this later
-  freeaddrinfo(addr_list);
 
-  //ASSERT(setNonBlocking(sock), "setNonBlocking() failed. errno:" + std::string(strerror(errno)));
-  //ASSERT(disableNagle(sock), "disableNagle() failed. errno:" + std::string(strerror(errno)));
+  freeaddrinfo(addr_list);
 
   login_request.msg_type = 'L';
   login_request.timestamp = nanosecs();
@@ -138,9 +122,9 @@ int main(int argc, char *argv[]) {
   bool login_successful = false;
 
   if (send(sock, (void *) &login_request, sizeof(login_request), 0) < 0) {
-    printf("send failed!\n");
+    printf("login send failed!\n");
   } else {
-    printf("login request sent\n");
+    printf("Login request sent\n");
   }
 
   while (!login_successful) {
@@ -148,7 +132,7 @@ int main(int argc, char *argv[]) {
     int rec_len = 0;
     rec_len = recv(sock, &login_response, sizeof(struct LoginResponse), 0);
     if (rec_len < 0){
-      printf("receive failed!\n");
+      printf("login receive failed!\n");
     } else {
       if (*login_response.code == 'N') {
         if (login_response.check_sum == 0) {// the reason was empty, so compare checksum
@@ -166,7 +150,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-
   //send submission request
   submission_request.msg_type = 'S';
   submission_request.timestamp = nanosecs();
@@ -181,7 +164,7 @@ int main(int argc, char *argv[]) {
   int send_len = 0;
   send_len = send(sock, (void *) &submission_request, sizeof(submission_request), 0);
   if (send_len < 0){
-    printf("SubmissionRequest send failed!\n");
+    printf("Submission success.\n");
   } else {
     printf("SubmissionRequest request sent\n");
   }
@@ -204,28 +187,12 @@ int main(int argc, char *argv[]) {
   if (send(sock, (void *) &logout_request, sizeof(logout_request), 0) < 0) {
     printf("LogoutRequest send failed!\n");
   } else {
-    printf("Logout sent\n");
+    printf("Logout sent...\n");
   }
   if (recv(sock, &logout_response, sizeof(struct LogoutResponse), 0) == -1) {
     printf("LogoutResponse receive failed!\n");
   } else {
-    printf("Logout received\n");
+    printf("Logout received...\n");
   }
-
-
-
-
-
-  /*printf("Remote address is: ");
-  char address_buffer[100];
-  char service_buffer[100];
-  getnameinfo(peer_address->ai_addr, peer_address->ai_addrlen,
-              address_buffer, sizeof(address_buffer),
-              service_buffer, sizeof(service_buffer),
-              NI_NUMERICHOST);
-  printf("%s %s\n", address_buffer, service_buffer);*/
-
-
-
   exit(0);
 }
