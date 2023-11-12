@@ -109,17 +109,22 @@ int main(int argc, char *argv[]) {
     sock = socket(addr->ai_family, addr->ai_socktype, 0);
     if (!ISVALIDSOCKET(sock)) {
       fprintf(stderr, "socket() failed. (%d)\n", GETSOCKETERRNO());
+      close(sock);
     } else {
       printf("socket successfully created\n");
+      //establish connection to server
+      if (connect(sock, addr->ai_addr, addr->ai_addrlen)) {
+        fprintf(stderr, "connect() failed. (%d)\n", GETSOCKETERRNO());
+      }
     }
 
-    //establish connection to server
-    if (connect(sock, addr->ai_addr, addr->ai_addrlen)) {
-      fprintf(stderr, "connect() failed. (%d)\n", GETSOCKETERRNO());
-    }
+
   }
   // check this later
   freeaddrinfo(addr_list);
+
+  //ASSERT(setNonBlocking(sock), "setNonBlocking() failed. errno:" + std::string(strerror(errno)));
+  //ASSERT(disableNagle(sock), "disableNagle() failed. errno:" + std::string(strerror(errno)));
 
   login_request.msg_type = 'L';
   login_request.timestamp = nanosecs();
@@ -132,15 +137,17 @@ int main(int argc, char *argv[]) {
 
   bool login_successful = false;
 
+  if (send(sock, (void *) &login_request, sizeof(login_request), 0) < 0) {
+    printf("send failed!\n");
+  } else {
+    printf("login request sent\n");
+  }
+
   while (!login_successful) {
 
-    if (send(sock, (void *) &login_request, sizeof(login_request), 0) < 0) {
-      printf("send failed!\n");
-    } else {
-      printf("login request sent\n");
-    }
-
-    if (recv(sock, &login_response, sizeof(struct LoginResponse), 0) == -1) {
+    int rec_len = 0;
+    rec_len = recv(sock, &login_response, sizeof(struct LoginResponse), 0);
+    if (rec_len < 0){
       printf("receive failed!\n");
     } else {
       if (*login_response.code == 'N') {
@@ -152,12 +159,13 @@ int main(int argc, char *argv[]) {
         } else {
           printf("Login failed with reason: %s\n", login_response.reason);
         }
-      } else {
+      } else if (*login_response.code == 'Y') {
         printf("Login success\n");
         login_successful = true;
       }
     }
   }
+
 
   //send submission request
   submission_request.msg_type = 'S';
@@ -165,17 +173,21 @@ int main(int argc, char *argv[]) {
   submission_request.msg_len = 205;
   strcpy(submission_request.name,"suhas ghorpadkar");
   strcpy(submission_request.email,"suhasghorp@gmail.com");
-  strcpy(submission_request.repo,"https://github.com/suhasghorp/tcpclient");
+  strcpy(submission_request.repo,"github.com/suhasghorp/tcpclient");
   auto sub_ptr=(unsigned char *)&submission_request;
   sz=sizeof(struct SubmissionRequest);
   submission_request.check_sum = checksum16(sub_ptr, sz);
 
-  if (send(sock, (void *) &submission_request, sizeof(submission_request), 0) < 0) {
+  int send_len = 0;
+  send_len = send(sock, (void *) &submission_request, sizeof(submission_request), 0);
+  if (send_len < 0){
     printf("SubmissionRequest send failed!\n");
   } else {
     printf("SubmissionRequest request sent\n");
   }
-  if (recv(sock, &submission_response, sizeof(struct SubmissionResponse), 0) == -1) {
+  int rec_len = 0;
+  rec_len = recv(sock, &submission_response, sizeof(struct SubmissionResponse), 0);
+  if (rec_len < sizeof(SubmissionResponse)){
     printf("SubmissionResponse receive failed!\n");
   } else {
     printf("Token:%s\n", submission_response.token);

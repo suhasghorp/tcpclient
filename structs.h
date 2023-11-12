@@ -2,6 +2,11 @@
 #define TCPCLIENT__STRUCTS_H_
 
 #include "challenge.h"
+#include <fcntl.h>
+#include <string>
+#include <iostream>
+
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
 struct LoginRequest{
   char msg_type;
@@ -54,5 +59,26 @@ struct LogoutResponse{
   uint16_t check_sum;
   char reason[32];
 } __attribute__((packed)) logout_response;
+
+inline auto setNonBlocking(int fd) -> bool {
+  const auto flags = fcntl(fd, F_GETFL, 0);
+  if (flags & O_NONBLOCK)
+    return true;
+  return (fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1);
+}
+
+inline auto ASSERT(bool cond, const std::string &msg) noexcept {
+  if (UNLIKELY(!cond)) {
+    std::cerr << "ASSERT : " << msg << std::endl;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+inline auto disableNagle(int fd) -> bool {
+  int one = 1;
+  return (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<void *>(&one), sizeof(one)) != -1);
+}
+
 
 #endif//TCPCLIENT__STRUCTS_H_
