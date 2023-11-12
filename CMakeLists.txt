@@ -3,4 +3,4 @@ project(tcpclient)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(tcpclient main.cpp challenge.h)
+add_executable(tcpclient main.cpp challenge.h structs.h)

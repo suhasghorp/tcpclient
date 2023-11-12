@@ -14,11 +14,4 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define ISVALIDSOCKET(s) ((s) >= 0)
-#define CLOSESOCKET(s) close(s)
-#define SOCKET int
-#define GETSOCKETERRNO() (errno)
-
-
-
 #endif//TCPCLIENT__CHALLENGE_H_
