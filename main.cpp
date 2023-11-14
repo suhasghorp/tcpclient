@@ -176,5 +176,9 @@ int main(int argc, char *argv[]) {
   } else {
     printf("Logout received...\n");
   }
+
+  if (sock){
+    close(sock);
+  }
   exit(0);
 }
